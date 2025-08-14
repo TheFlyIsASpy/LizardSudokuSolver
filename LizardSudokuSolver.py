@@ -25,12 +25,16 @@ def CreateSudokuGrid(box_size):
     return grid
 
 def PlaceNumber(grid, number, x, y):
+    
     try:
         number = int(number)
         x = int(x)
         y = int(y)
     except:
         return -1
+    
+    if number == 0:
+        return grid
     
     grid_length = len(grid["solution"])
     
@@ -74,22 +78,22 @@ def PlaceNumber(grid, number, x, y):
     return grid
 
 def RemovePossibleFromRow(grid, number, x):
-    grid["solution_log"].append("Removing possible " + str(number) + " from row: " + str(x))
     grid_length = grid["box_size"] ** 2
     for i in range(grid_length):
-        grid["notes"][x][i][number - 1] = False
-    
+        if grid["notes"][x][i][number - 1]:
+            grid["solution_log"].append("Removing possible " + str(number) + " from row: " + str(x) + " column: " + str(i))
+            grid["notes"][x][i][number - 1] = False
     return grid
 
 def RemovePossibleFromColumn(grid, number, y):
-    grid["solution_log"].append("Removing possible " + str(number) + " from col: " + str(y))
     grid_length = grid["box_size"] ** 2
     for i in range(grid_length):
-        grid["notes"][i][y][number - 1] = False
+        if grid["notes"][i][y][number - 1]:
+            grid["solution_log"].append("Removing possible " + str(number) + " from row: " + str(i) + " column: " + str(y))
+            grid["notes"][i][y][number - 1] = False
     return grid
 
 def RemovePossibleFromBox(grid, number, x, y):
-    grid["solution_log"].append("Removing possible " + str(number) + " from box at row: " + str(x) + " col: " + str(y))
     x_box = math.ceil((x+1)/grid["box_size"])
     y_box = math.ceil((y+1)/grid["box_size"])
 
@@ -101,6 +105,7 @@ def RemovePossibleFromBox(grid, number, x, y):
         for j in range(y_min, y_min + grid["box_size"]):
             if grid["notes"][i][j][number - 1]:
                 num_removed += 1
+                grid["solution_log"].append("Removing possible " + str(number) + " from row: " + str(i) + " col: " + str(j))
                 grid["notes"][i][j][number - 1] = False
     
     if num_removed > 0:
@@ -964,8 +969,8 @@ def CheckPointForYWings(grid, x, y):
             matching_num = cached_notes[target_wing][0]
             mismatching_num = cached_notes[target_wing][1]
         else:
-            matching_num = cached_notes[target_wing][0]
-            mismatching_num = cached_notes[target_wing][1]
+            matching_num = cached_notes[target_wing][1]
+            mismatching_num = cached_notes[target_wing][0]
 
         for j in range(i+1, len(potential_ywings[current_point])):
             second_wing = potential_ywings[current_point][j]
@@ -1076,4 +1081,3 @@ def PrintNotes(grid):
 def PrintSolutionLog(grid):
     for s in grid["solution_log"]:
         print(s)
-

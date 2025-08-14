@@ -2,6 +2,7 @@
 .venv-1/
 .vscode/
 __pycache__/
+saved_grids/
 *.py[codz]
 *$py.class
 test.py
