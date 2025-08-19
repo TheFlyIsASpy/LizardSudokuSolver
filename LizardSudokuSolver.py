@@ -115,6 +115,59 @@ def RemovePossibleFromBox(grid, number, x, y):
     
     return grid
 
+def RemovePossibleFromSharedSquares(grid, number, p1, p2, exclusions = []):
+
+    changed = set()
+
+    p1_x_box = math.ceil((p1[0]+1)/grid["box_size"])
+    p1_y_box = math.ceil((p1[1]+1)/grid["box_size"])
+
+    p1_x_min = grid["box_size"] * (p1_x_box - 1)
+    p1_y_min = grid["box_size"] * (p1_y_box - 1)
+
+    p2_x_box = math.ceil((p2[0]+1)/grid["box_size"])
+    p2_y_box = math.ceil((p2[1]+1)/grid["box_size"])
+
+    p2_x_min = grid["box_size"] * (p2_x_box - 1)
+    p2_y_min = grid["box_size"] * (p2_y_box - 1)
+
+    crossover_points = set()
+
+    crossover_points.add((p1[0], p2[1]))
+    crossover_points.add((p2[0], p1[1]))
+
+    if p1[0] >= p2_x_min and p1[0] < p2_x_min + grid["box_size"]:
+        for i in range(p2_y_min, p2_y_min + grid["box_size"]):
+            crossover_points.add((p1[0], i))
+    
+    if p1[1] >= p2_y_min and p1[1] < p2_y_min + grid["box_size"]:
+        for i in range(p2_x_min, p2_x_min + grid["box_size"]):
+            crossover_points.add((i, p1[1]))
+
+    if p2[0] >= p1_x_min and p2[0] < p1_x_min + grid["box_size"]:
+        for i in range(p1_y_min, p1_y_min + grid["box_size"]):
+            crossover_points.add((p2[0], i))
+    
+    if p2[1] >= p1_y_min and p2[1] < p1_y_min + grid["box_size"]:
+        for i in range(p1_x_min, p1_x_min + grid["box_size"]):
+            crossover_points.add((i, p2[1]))
+
+    for e in exclusions:
+        if e in crossover_points:
+            crossover_points.remove(e)
+
+    for p in crossover_points:
+        if grid["notes"][p[0]][p[1]][number]:
+            grid["solution_log"].append("Removing possible " + str(number + 1) + " from row: " + str(p[0]) + " column: " + str(p[1]))
+            grid["notes"][p[0]][p[1]][number] = False
+            changed.add(p)
+
+    if len(changed) > 0:
+        for p in changed:
+            grid = PerformPointChecks(grid, p[0], p[1])
+
+    return grid, changed
+
 def PerformBasicRowChecks(grid, x):
     grid = CheckRowForOnlyOptions(grid, x)
     grid = CheckRowForOnlyPositions(grid, x)
@@ -153,12 +206,14 @@ def PerformAdvancedRowChecks(grid, y):
     for i in range(grid["box_size"] ** 2):
         grid = CheckPointForXWings(grid, i, y)
         grid = CheckPointForYWings(grid, i, y)
+        grid = CheckPointForXYChains(grid, i, y)
     return grid
 
 def PerformAdvancedColumnChecks(grid, x):
     for i in range(grid["box_size"] ** 2):
         grid = CheckPointForXWings(grid, x, i)
         grid = CheckPointForYWings(grid, x, i)
+        grid = CheckPointForXYChains(grid, x, i)
     return grid
 
 def PerformAdvancedPointChecks(grid, x, y):
@@ -998,68 +1053,213 @@ def CheckPointForYWings(grid, x, y):
 
         grid["solution_log"].append("found a ywing for pivot: " + str(y_wing[0]) + " wing1: " + str(y_wing[1]) + " wing2: " + str(y_wing[2]) + " for numbers: " + str(y_wing[3] + 1))
         
-        num_changed = 0
+        grid, just_changed = RemovePossibleFromSharedSquares(grid, y_wing[3], y_wing[1], y_wing[2], [y_wing[0], y_wing[1], y_wing[2]])
 
-        w1 = y_wing[1]
-        w2 = y_wing[2]
-        to_eliminate = y_wing[3]
+        changed |= just_changed
 
-        w1_x_box = math.ceil((w1[0]+1)/grid["box_size"])
-        w1_y_box = math.ceil((w1[1]+1)/grid["box_size"])
-
-        w1_x_min = grid["box_size"] * (w1_x_box - 1)
-        w1_y_min = grid["box_size"] * (w1_y_box - 1)
-
-        w2_x_box = math.ceil((w2[0]+1)/grid["box_size"])
-        w2_y_box = math.ceil((w2[1]+1)/grid["box_size"])
-
-        w2_x_min = grid["box_size"] * (w2_x_box - 1)
-        w2_y_min = grid["box_size"] * (w2_y_box - 1)
-
-        crossover_points = set()
-
-        crossover_points.add((w1[0], w2[1]))
-        crossover_points.add((w2[0], w1[1]))
-
-        if w1[0] >= w2_x_min and w1[0] < w2_x_min + grid["box_size"]:
-            for i in range(w2_y_min, w2_y_min + grid["box_size"]):
-                crossover_points.add((w1[0], i))
-        
-        if w1[1] >= w2_y_min and w1[1] < w2_y_min + grid["box_size"]:
-            for i in range(w2_x_min, w2_x_min + grid["box_size"]):
-                crossover_points.add((i, w1[1]))
-
-        if w2[0] >= w1_x_min and w2[0] < w1_x_min + grid["box_size"]:
-            for i in range(w1_y_min, w1_y_min + grid["box_size"]):
-                crossover_points.add((w2[0], i))
-        
-        if w2[1] >= w1_y_min and w2[1] < w1_y_min + grid["box_size"]:
-            for i in range(w1_x_min, w1_x_min + grid["box_size"]):
-                crossover_points.add((i, w2[1]))
-
-        if y_wing[0] in crossover_points:
-            crossover_points.remove(y_wing[0])
-
-        if y_wing[1] in crossover_points:
-            crossover_points.remove(y_wing[1])
-
-        if y_wing[2] in crossover_points:
-            crossover_points.remove(y_wing[2])
-
-        for p in crossover_points:
-            if grid["notes"][p[0]][p[1]][to_eliminate]:
-                num_changed += 1
-                grid["solution_log"].append("ywing elmiminated: " + str(to_eliminate + 1) + " from row: " + str(p[0]) + " column: " + str(p[1]))
-                grid["notes"][p[0]][p[1]][to_eliminate] = False
-                changed.add(p)
-
-        if num_changed == 0:
+        if len(just_changed)== 0:
             grid["solution_log"].pop()
 
     if len(changed) > 0:
         for p in changed:
             grid = PerformPointChecks(grid, p[0], p[1])
     
+    return grid
+
+def CheckPointForXYChains(grid, x, y):
+    grid_length = grid["box_size"] ** 2
+
+    #generally, you would label these as colors, I am going to use positions. So, [0] is "red" [1] is "black"
+    original_notes = []
+    for i in range(grid_length):
+        if grid["notes"][x][y][i]:
+            original_notes.append(i)
+    
+    if len(original_notes) != 2:
+        return grid
+    
+    visited = set()
+
+    search_stack = [((x,y), original_notes, -1)]
+
+    current_chain = []
+
+    changed = set()
+
+    while len(search_stack) > 0:
+
+        current_candidate = search_stack.pop()
+
+        current_point = current_candidate[0]
+        current_notes = current_candidate[1]
+        current_note_set = set(current_notes)
+        
+        if len(current_chain) == 0:
+            current_chain.append([current_point, 0, -1])
+            visited.add(current_point)
+        else:
+            while len(current_chain) > 0 and current_chain[-1][1] == 0:
+                no_longer_parent = current_chain.pop()
+                visited.remove(no_longer_parent[0])
+
+            if len(current_chain) > 0:
+                current_chain[-1][1] -= 1
+
+            if current_chain[-1][2] == -1:
+                if current_notes[0] == original_notes[0] or current_notes[0] == original_notes[1]:
+                    current_chain.append([current_point, 0, current_notes[0]])
+                else:
+                    current_chain.append([current_point, 0, current_notes[1]])
+            else:
+                current_chain.append([current_point, 0, current_candidate[2]])
+
+            visited.add(current_point)
+
+        x_box = math.ceil((current_point[0]+1)/grid["box_size"])
+        y_box = math.ceil((current_point[1]+1)/grid["box_size"])
+
+        x_min = grid["box_size"] * (x_box - 1)
+        y_min = grid["box_size"] * (y_box - 1)
+
+        num_children = 0
+
+        for i in range(grid_length):
+            if i != current_point[0]:
+                if (i,current_point[1]) in visited:
+                    continue
+
+                target_notes = []
+                for j in range(grid_length):
+                    if grid["notes"][i][current_point[1]][j]:
+                        target_notes.append(j)
+                target_note_set = set(target_notes)
+                
+                if len(target_notes) != 2:
+                    continue
+                
+                intersect = target_note_set & current_note_set
+
+                if len(intersect) != 1:
+                    continue
+
+                note = next(iter(intersect))
+                target_note_set.remove(note)
+                other_note = next(iter(target_note_set))
+
+                if note == current_notes[0] and other_note != current_notes[1] and (note != current_candidate[2] or current_candidate[2] == -1):
+                    search_stack.append(((i, current_point[1]), [other_note, note], note))
+                    num_children += 1
+
+                if note == current_notes[1] and other_note != current_notes[0] and (note != current_candidate[2] or current_candidate[2] == -1):
+                    search_stack.append(((i, current_point[1]), [note, other_note], note))
+                    num_children += 1
+
+        for i in range(grid_length):
+            if i != current_point[1]:
+
+                if (current_point[0],i) in visited:
+                    continue
+                target_notes = []
+                for j in range(grid_length):
+                    if grid["notes"][current_point[0]][i][j]:
+                        target_notes.append(j)
+                target_note_set = set(target_notes)
+                
+
+                if len(target_notes) != 2:
+                    continue
+                
+                intersect = target_note_set & current_note_set
+
+                if len(intersect) != 1:
+                    continue
+
+                note = next(iter(intersect))
+                target_note_set.remove(note)
+                other_note = next(iter(target_note_set))
+
+                if note == current_notes[0] and other_note != current_notes[1] and (note != current_candidate[2] or current_candidate[2] == -1):
+                    search_stack.append(((current_point[0],i), [other_note, note], note))
+                    num_children += 1
+
+                if note == current_notes[1] and other_note != current_notes[0] and (note != current_candidate[2] or current_candidate[2] == -1):
+                    search_stack.append(((current_point[0],i), [note, other_note], note))
+                    num_children += 1
+
+        for i in range(x_min, x_min + grid["box_size"]):
+            for j in range(y_min, y_min + grid["box_size"]):
+                if i != current_point[0] and j != current_point[1]:
+
+                    if (i,j) in visited:
+                        continue
+                    target_notes = []
+                    for k in range(grid_length):
+                        if grid["notes"][i][j][k]:
+                            target_notes.append(k)
+                    target_note_set = set(target_notes)
+                    
+                    if len(target_notes) != 2:
+                        continue
+                    
+                    intersect = target_note_set & current_note_set
+
+                    if len(intersect) != 1:
+                        continue
+
+                    note = next(iter(intersect))
+                    target_note_set.remove(note)
+                    other_note = next(iter(target_note_set))
+
+                    if note == current_notes[0] and other_note != current_notes[1] and (note != current_candidate[2] or current_candidate[2] == -1):
+                        search_stack.append(((i, j), [other_note, note], note))
+                        num_children += 1
+
+                    if note == current_notes[1] and other_note != current_notes[0] and (note != current_candidate[2] or current_candidate[2] == -1):
+                        search_stack.append(((i, j), [note, other_note], note))
+                        num_children += 1
+
+        current_chain[-1][1] += num_children
+
+        #not the original point
+        if current_point == (x,y):
+            continue
+
+        if len(current_chain) <= 2:
+            continue
+        
+        #not a child of the original point (a 2 length tree)
+        if current_chain[-2][0] == (x,y):
+            continue
+
+        to_remove = []
+
+        if current_notes[0] == original_notes[1] and current_notes[0] != current_chain[1][2]:
+            to_remove.append(current_notes[0])
+        
+        if current_notes[1] == original_notes[0] and current_notes[1] != current_chain[1][2]:
+            to_remove.append(current_notes[1])  
+
+        for n in to_remove:
+            log = "Found XY-chain at these coordinates: "
+            for p in current_chain:
+                log += str(p[0]) + ','
+
+            log = log[:-1]
+
+            log += " for number: " + str(n+1)
+
+            grid["solution_log"].append(log)
+            grid, just_changed = RemovePossibleFromSharedSquares(grid, n, current_point, (x,y), [current_point, (x,y)])
+
+            changed |= just_changed
+
+            if len(just_changed) == 0:
+                grid["solution_log"].pop()
+
+    if len(changed) > 0:
+        for p in changed:
+            grid = PerformPointChecks(grid, p[0], p[1])
+
     return grid
 
 def PrintSolution(grid):

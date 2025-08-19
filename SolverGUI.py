@@ -342,7 +342,6 @@ class MainWindow(QMainWindow):
                 if puzzle_data[i][j] != 0:
                     grid = s.PlaceNumber(grid, puzzle_data[i][j], i, j)
 
-
         solution_steps = grid["solution_log"]
 
         for i in range(len(puzzle_data)):
